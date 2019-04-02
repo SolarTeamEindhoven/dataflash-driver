@@ -15,7 +15,6 @@
  */
 
 #include "DataFlashBlockDevice.h"
-#include "mbed_critical.h"
 
 #include <inttypes.h>
 
@@ -170,9 +169,10 @@ int DataFlashBlockDevice::init()
         _init_ref_count = 0;
     }
 
-    uint32_t val = core_util_atomic_incr_u32(&_init_ref_count, 1);
+//    uint32_t val = core_util_atomic_incr_u32(&_init_ref_count, 1);
+    _init_ref_count++;
 
-    if (val != 1) {
+    if (_init_ref_count != 1) {
         return BD_ERROR_OK;
     }
 
@@ -293,9 +293,10 @@ int DataFlashBlockDevice::deinit()
         return BD_ERROR_OK;
     }
 
-    uint32_t val = core_util_atomic_decr_u32(&_init_ref_count, 1);
+//    uint32_t val = core_util_atomic_decr_u32(&_init_ref_count, 1);
+    _init_ref_count--;
 
-    if (val) {
+    if (_init_ref_count) {
         return BD_ERROR_OK;
     }
 
@@ -501,6 +502,24 @@ bd_size_t DataFlashBlockDevice::size() const
     DEBUG_PRINTF("device size: %" PRIX32 "\r\n", _device_size);
 
     return _device_size;
+}
+
+bool DataFlashBlockDevice::is_valid_read(bd_addr_t addr, bd_size_t size) const {
+	return (addr % get_read_size() == 0 &&
+			size % get_read_size() == 0 &&
+			addr + size <= this->size());
+}
+
+bool DataFlashBlockDevice::is_valid_program(bd_addr_t addr, bd_size_t size) const {
+	return (addr % get_program_size() == 0 &&
+			size % get_program_size() == 0 &&
+			addr + size <= this->size());
+}
+
+bool DataFlashBlockDevice::is_valid_erase(bd_addr_t addr, bd_size_t size) const {
+	 return (addr % get_erase_size(addr) == 0 &&
+			 (addr + size) % get_erase_size(addr + size - 1) == 0 &&
+			 addr + size <= this->size());
 }
 
 /**

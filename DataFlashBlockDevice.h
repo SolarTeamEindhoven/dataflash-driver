@@ -17,8 +17,21 @@
 #ifndef MBED_DATAFLASH_BLOCK_DEVICE_H
 #define MBED_DATAFLASH_BLOCK_DEVICE_H
 
+#include <atomic>
+
 #include <mbed.h>
-#include "BlockDevice.h"
+
+using bd_addr_t = uint64_t;
+using bd_size_t = uint64_t;
+
+/** Enum of standard error codes
+ *
+ *  @enum bd_error
+ */
+enum bd_error {
+    BD_ERROR_OK                 = 0,     /*!< no error */
+    BD_ERROR_DEVICE_ERROR       = -4001, /*!< device specific error */
+};
 
 
 /** BlockDevice for DataFlash flash devices
@@ -59,7 +72,7 @@
  *  }
  *  @endcode
  */
-class DataFlashBlockDevice : public BlockDevice {
+class DataFlashBlockDevice {
 public:
     /** Creates a DataFlashBlockDevice on a SPI bus specified by pins
      *
@@ -81,13 +94,13 @@ public:
      *
      *  @return         0 on success or a negative error code on failure
      */
-    virtual int init();
+    int init();
 
     /** Deinitialize a block device
      *
      *  @return         0 on success or a negative error code on failure
      */
-    virtual int deinit();
+    int deinit();
 
     /** Read blocks from a block device
      *
@@ -96,7 +109,7 @@ public:
      *  @param size     Size to read in bytes, must be a multiple of read block size
      *  @return         0 on success, negative error code on failure
      */
-    virtual int read(void *buffer, bd_addr_t addr, bd_size_t size);
+    int read(void *buffer, bd_addr_t addr, bd_size_t size);
 
     /** Program blocks to a block device
      *
@@ -107,7 +120,7 @@ public:
      *  @param size     Size to write in bytes, must be a multiple of program block size
      *  @return         0 on success, negative error code on failure
      */
-    virtual int program(const void *buffer, bd_addr_t addr, bd_size_t size);
+    int program(const void *buffer, bd_addr_t addr, bd_size_t size);
 
     /** Erase blocks on a block device
      *
@@ -117,27 +130,27 @@ public:
      *  @param size     Size to erase in bytes, must be a multiple of erase block size
      *  @return         0 on success, negative error code on failure
      */
-    virtual int erase(bd_addr_t addr, bd_size_t size);
+    int erase(bd_addr_t addr, bd_size_t size);
 
     /** Get the size of a readable block
      *
      *  @return         Size of a readable block in bytes
      */
-    virtual bd_size_t get_read_size() const;
+    bd_size_t get_read_size() const;
 
     /** Get the size of a programable block
      *
      *  @return         Size of a programable block in bytes
      *  @note Must be a multiple of the read size
      */
-    virtual bd_size_t get_program_size() const;
+    bd_size_t get_program_size() const;
 
     /** Get the size of a eraseable block
      *
      *  @return         Size of a eraseable block in bytes
      *  @note Must be a multiple of the program size
      */
-    virtual bd_size_t get_erase_size() const;
+    bd_size_t get_erase_size() const;
 
     /** Get the size of an erasable block given address
      *
@@ -145,13 +158,37 @@ public:
      *  @return         Size of an erasable block in bytes
      *  @note Must be a multiple of the program size
      */
-    virtual bd_size_t get_erase_size(bd_addr_t addr) const;
+    bd_size_t get_erase_size(bd_addr_t addr) const;
 
     /** Get the total size of the underlying device
      *
      *  @return         Size of the underlying device in bytes
      */
-    virtual bd_size_t size() const;
+    bd_size_t size() const;
+
+    /** Convenience function for checking block read validity
+	 *
+	 *  @param addr     Address of block to begin reading from
+	 *  @param size     Size to read in bytes
+	 *  @return         True if read is valid for underlying block device
+	 */
+    bool is_valid_read(bd_addr_t addr, bd_size_t size) const;
+
+    /** Convenience function for checking block program validity
+	 *
+	 *  @param addr     Address of block to begin writing to
+	 *  @param size     Size to write in bytes
+	 *  @return         True if program is valid for underlying block device
+	 */
+    bool is_valid_program(bd_addr_t addr, bd_size_t size) const;
+
+    /** Convenience function for checking block erase validity
+	 *
+	 *  @param addr     Address of block to begin erasing
+	 *  @param size     Size to erase in bytes
+	 *  @return         True if erase is valid for underlying block device
+	 */
+    bool is_valid_erase(bd_addr_t addr, bd_size_t size) const;
 
 private:
     // Master side hardware
@@ -164,7 +201,7 @@ private:
     uint16_t _page_size;
     uint16_t _block_size;
     bool _is_initialized;
-    uint32_t _init_ref_count;
+    std::atomic<uint32_t> _init_ref_count;
 
     // Internal functions
     uint16_t _get_register(uint8_t opcode);
